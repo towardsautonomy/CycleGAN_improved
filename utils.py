@@ -23,12 +23,17 @@ def checkpoint(checkpoint_dir, epoch, G_XtoY, G_YtoX, D_X, D_Y, best=False):
     else:
         checkpoint_dir = os.path.join(checkpoint_dir, str(epoch).zfill(6))
 
+    # make directory if it does not exist
     if not os.path.exists(checkpoint_dir):
         os.system('mkdir -p '+checkpoint_dir)
+
+    # build up the file paths
     G_XtoY_path = os.path.join(checkpoint_dir, 'G_XtoY.pkl')
     G_YtoX_path = os.path.join(checkpoint_dir, 'G_YtoX.pkl')
-    D_X_path = os.path.join(checkpoint_dir, 'D_X_.pkl')
-    D_Y_path = os.path.join(checkpoint_dir, 'D_Y_.pkl')
+    D_X_path = os.path.join(checkpoint_dir, 'D_X.pkl')
+    D_Y_path = os.path.join(checkpoint_dir, 'D_Y.pkl')
+
+    # save weights to file
     torch.save(G_XtoY.state_dict(), G_XtoY_path)
     torch.save(G_YtoX.state_dict(), G_YtoX_path)
     torch.save(D_X.state_dict(), D_X_path)
@@ -49,35 +54,39 @@ def save_samples(samples_dir, epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_siz
     # move input data to correct device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+    # X->Y->Reconstructed X
     fake_Y = G_XtoY(fixed_X.to(device))
     recon_Y_X = G_YtoX(fake_Y.to(device))
+
+    # Y->X->Reconstructed Y
     fake_X = G_YtoX(fixed_Y.to(device))
     recon_X_Y = G_XtoY(fake_X.to(device))
     
+    # get data in numpy format
     X, fake_Y, recon_Y_X = to_data(fixed_X), to_data(fake_Y), to_data(recon_Y_X)
     Y, fake_X, recon_X_Y = to_data(fixed_Y), to_data(fake_X), to_data(recon_X_Y)
 
+    # matplotlib plot
     n_rows = 4
     plt.figure(figsize=(20,16))
-    # Turn off tick labels
-    plt.xticks([])
-    plt.yticks([])
     plt.tight_layout()
+
     for i in range(min(n_rows, batch_size)):
         plt.subplot(n_rows,2,i*2+1)
         plt.title('Original Image X   |   Translated Image    |   Reconstructed Image', fontsize=16, fontweight="bold")
         img_concat = cv2.hconcat([np.transpose(X[i,:,:,:], (1, 2, 0)),       
-                                np.transpose(fake_Y[i,:,:,:], (1, 2, 0)),   
-                                np.transpose(recon_Y_X[i,:,:,:], (1, 2, 0))])
+                                  np.transpose(fake_Y[i,:,:,:], (1, 2, 0)),   
+                                  np.transpose(recon_Y_X[i,:,:,:], (1, 2, 0))])
         plt.imshow(img_concat)
 
         plt.subplot(n_rows,2,i*2+2)
         plt.title('Original Image Y   |   Translated Image    |   Reconstructed Image', fontsize=16, fontweight="bold")
         img_concat = cv2.hconcat([np.transpose(Y[i,:,:,:], (1, 2, 0)),       
-                                np.transpose(fake_X[i,:,:,:], (1, 2, 0)),   
-                                np.transpose(recon_X_Y[i,:,:,:], (1, 2, 0))])
+                                  np.transpose(fake_X[i,:,:,:], (1, 2, 0)),   
+                                  np.transpose(recon_X_Y[i,:,:,:], (1, 2, 0))])
         plt.imshow(img_concat)
 
+    # save the sampled results to file
     path = os.path.join(samples_dir, 'sample-{:06d}.png'.format(epoch))
     plt.savefig(path)
     plt.close()

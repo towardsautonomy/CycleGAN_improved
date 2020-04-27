@@ -1,15 +1,15 @@
 import torch
 
 ## Define Loss Functions
-def real_mse_loss(D_out):
+def real_discriminator_loss(D_out, lambda_weight=1.0):
     # how close is the produced output from being "real"?
-    return torch.mean((D_out-1)**2)
+    return lambda_weight*torch.mean((D_out-1)**2)
 
-def fake_mse_loss(D_out):
+def fake_discriminator_loss(D_out, lambda_weight=1.0):
     # how close is the produced output from being "fake"?
-    return torch.mean(D_out**2)
+    return lambda_weight*torch.mean(D_out**2)
 
-def cycle_consistency_loss(real_im, reconstructed_im, lambda_weight):
+def cycle_consistency_loss(real_im, reconstructed_im, lambda_weight=1.0):
     # calculate reconstruction loss 
     # as absolute value difference between the real and reconstructed images
     reconstr_loss = torch.mean(torch.abs(real_im - reconstructed_im))

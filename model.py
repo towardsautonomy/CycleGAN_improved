@@ -84,19 +84,24 @@ class Discriminator(nn.Module):
         return out
 
 # Define the Generator Architecture
-class CycleGenerator(nn.Module):
+class Generator(nn.Module):
     
-    def __init__(self, conv_dim=64, n_res_blocks=6):
-        super(CycleGenerator, self).__init__()
+    def __init__(self, conv_dim=64, n_res_blocks=4):
+        super(Generator, self).__init__()
 
-        # 1. Define the encoder part of the generator
+        # Define the encoder part of the generator
         
         # initial convolutional layer given, below
-        self.conv1 = conv(3, conv_dim, 4)
-        self.conv2 = conv(conv_dim, conv_dim*2, 4)
-        self.conv3 = conv(conv_dim*2, conv_dim*4, 4)
+        self.block1_conv1 = conv(3, conv_dim, 4)
+        self.block1_conv2 = conv(conv_dim, conv_dim, 4)
 
-        # 2. Define the resnet part of the generator
+        self.block2_conv1 = conv(conv_dim, 2*conv_dim, 4)
+        self.block2_conv2 = conv(2*conv_dim, 2*conv_dim, 4)
+
+        self.block3_conv1 = conv(2*conv_dim, 4*conv_dim, 4)
+        self.block3_conv2 = conv(4*conv_dim, 4*conv_dim, 4)
+
+        # Define the resnet part of the generator
         # Residual blocks
         res_layers = []
         for layer in range(n_res_blocks):
@@ -104,36 +109,51 @@ class CycleGenerator(nn.Module):
         # use sequential to create these layers
         self.res_blocks = nn.Sequential(*res_layers)
 
-        # 3. Define the decoder part of the generator
+        # Define the decoder part of the generator
         # two transpose convolutional layers and a third that looks a lot like the initial conv layer
-        self.deconv1 = deconv(conv_dim*4, conv_dim*2, 4)
-        self.deconv2 = deconv(conv_dim*2, conv_dim, 4)
+        self.dblock1_deconv1 = deconv(conv_dim*4, conv_dim*2, 4)
+        self.dblock1_deconv2 = deconv(conv_dim*2, conv_dim*2, 4)
+
+        self.dblock2_deconv1 = deconv(conv_dim*2, conv_dim, 4)
+        self.dblock2_deconv2 = deconv(conv_dim, conv_dim, 4)
+
+        self.dblock3_deconv1 = deconv(conv_dim, conv_dim, 4)
         # no batch norm on last layer
-        self.deconv3 = deconv(conv_dim, 3, 4, batch_norm=False)
+        self.out_layer = deconv(conv_dim, 3, 4, batch_norm=False)
 
     def forward(self, x):
         """Given an image x, returns a transformed image."""
         # define feedforward behavior, applying activations as necessary
 
-        out = F.relu(self.conv1(x))
-        out = F.relu(self.conv2(out))
-        out = F.relu(self.conv3(out))
+        out = F.relu(self.block1_conv1(x))
+        out = F.relu(self.block1_conv2(out))
+
+        out = F.relu(self.block2_conv1(out))
+        out = F.relu(self.block2_conv2(out))
+
+        out = F.relu(self.block3_conv1(out))
+        out = F.relu(self.block3_conv2(out))
 
         out = self.res_blocks(out)
 
-        out = F.relu(self.deconv1(out))
-        out = F.relu(self.deconv2(out))
+        out = F.relu(self.dblock1_deconv1(out))
+        out = F.relu(self.dblock1_deconv2(out))
+
+        out = F.relu(self.dblock2_deconv1(out))
+        out = F.relu(self.dblock2_deconv2(out))
+
+        out = F.relu(self.dblock3_deconv1(out))
         # tanh applied to last layer
-        out = F.tanh(self.deconv3(out))
+        out = F.tanh(self.out_layer(out))
 
         return out
 
-def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6):
+def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=4):
     """Builds the generators and discriminators."""
     
     # Instantiate generators
-    G_XtoY = CycleGenerator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
-    G_YtoX = CycleGenerator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
+    G_XtoY = Generator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
+    G_YtoX = Generator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
     # Instantiate discriminators
     D_X = Discriminator(conv_dim=d_conv_dim)
     D_Y = Discriminator(conv_dim=d_conv_dim)
