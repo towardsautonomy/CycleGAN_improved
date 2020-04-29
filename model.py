@@ -139,8 +139,6 @@ class Generator(nn.Module):
         self.res_blocks = nn.Sequential(*res_layers)
 
         # Define the decoder part of the generator
-        # self.deconv1 = deconv(conv_dim*8, conv_dim*8, 4)
-        # self.deconv2 = deconv(conv_dim*8, conv_dim*8, 4)8
         self.deconv1 = deconv(conv_dim*4, conv_dim*4, 4)
         self.deconv2 = deconv(conv_dim*4, conv_dim*2, 4)
         self.deconv3 = deconv(conv_dim*2, conv_dim, 4)
