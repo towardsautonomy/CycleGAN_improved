@@ -24,15 +24,15 @@ os.system('mkdir -p '+logs_dir)
 
 ## create models
 # call the function to get models
-G_XtoY, G_YtoX, D_X, D_Y = CycleGAN()
+G_XtoY, G_YtoX, D_X, D_Y = CycleGAN(n_res_blocks=2)
 
 # define optimizer parameters
 g_params = list(G_XtoY.parameters()) + list(G_YtoX.parameters())  # Get generator parameters
 
 # Create optimizers for the generators and discriminators
-g_optimizer = optim.Adam(g_params, lr, [beta1, beta2])
-d_x_optimizer = optim.Adam(D_X.parameters(), lr, [beta1, beta2])
-d_y_optimizer = optim.Adam(D_Y.parameters(), lr, [beta1, beta2])
+g_optimizer = optim.Adam(g_params, g_lr, [beta1, beta2])
+d_x_optimizer = optim.Adam(D_X.parameters(), d_lr, [beta1, beta2])
+d_y_optimizer = optim.Adam(D_Y.parameters(), d_lr, [beta1, beta2])
 
 # count number of parameters in a model
 def count_model_parameters(model):
@@ -98,6 +98,11 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                  - Add the losses
                  - Perform back-propagation
                 '''
+
+                ## Set the discriminators to train mode
+                D_X.train()
+                D_Y.train()
+
                 ## Discriminators on Domain X
                 # Train with real images
                 d_x_optimizer.zero_grad()
@@ -138,7 +143,7 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                 D_Y_fake_loss = fake_discriminator_loss(out_y, lambda_weight=lambda_discriminator)
 
                 # Compute the total loss and perform backprop
-                d_y_loss = D_Y_real_loss + D_Y_fake_loss
+                d_y_loss = 0.5 * (D_Y_real_loss + D_Y_fake_loss)
                 d_y_loss.backward()
                 d_y_optimizer.step()
 
@@ -159,6 +164,12 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                  - Add the losses
                  - Perform back-propagation
                 '''
+
+                ## Set the generators to train mode and discriminators to eval mode
+                G_YtoX.train() 
+                G_XtoY.train()
+                D_X.eval()
+                D_Y.eval()
 
                 ## generate fake X images and reconstructed Y images
                 g_optimizer.zero_grad()
@@ -198,7 +209,7 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                 # Print the log info
                 # append real and fake discriminator losses and the generator loss
                 train_losses.append([d_x_loss.item(), d_y_loss.item(), reconstructed_x_loss.item(), reconstructed_y_loss.item(), g_total_loss.item()])
-                print('\rEpoch [{:5d}/{:5d}] | Iteration [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | recon_X_loss: {:6.4f} | recon_Y_loss: {:6.4f} | total_loss: {:6.4f}'.format(
+                print('\rEpoch [{:5d}/{:5d}] | Iteration [{:5d}/{:5d}] | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | recon_X_loss: {:6.4f} | recon_Y_loss: {:6.4f} | total_loss: {:6.4f}        '.format(
                         epoch, n_epochs, iteration, n_train_batch_per_epoch, d_x_loss.item(), d_y_loss.item(), reconstructed_x_loss.item(), reconstructed_y_loss.item(), g_total_loss.item()), end="")
 
             # compute time taken for training this batch
@@ -231,11 +242,11 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
 
                 # Discriminator X loss
                 disc_X_loss = real_discriminator_loss(D_X(images_X), lambda_weight=lambda_discriminator) + \
-                                real_discriminator_loss(D_X(fake_X), lambda_weight=lambda_discriminator)
+                                fake_discriminator_loss(D_X(fake_X), lambda_weight=lambda_discriminator)
 
                 # Discriminator Y loss
                 disc_Y_loss = real_discriminator_loss(D_Y(images_Y), lambda_weight=lambda_discriminator) + \
-                                real_discriminator_loss(D_Y(fake_Y), lambda_weight=lambda_discriminator)
+                                fake_discriminator_loss(D_Y(fake_Y), lambda_weight=lambda_discriminator)
 
                 # total validation loss
                 total_valid_loss = reconstructed_X_loss + reconstructed_Y_loss + disc_X_loss + disc_Y_loss
@@ -246,8 +257,8 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                 # set models back to train mode
                 G_YtoX.train()
                 G_XtoY.train()
-                D_X.eval()
-                D_Y.eval()
+                D_X.train()
+                D_Y.train()
 
             ## Compute average of losses
             # training losses
@@ -257,6 +268,7 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
             train_recon_X_loss = np.mean(train_losses[:,2])
             train_recon_Y_loss = np.mean(train_losses[:,3])
             train_total_G_loss = np.mean(train_losses[:,4])
+            total_recon_loss = train_recon_X_loss + train_recon_Y_loss
             # validation losses
             validation_losses = np.array(validation_losses)
             valid_d_X_loss = np.mean(validation_losses[:,0])
@@ -284,13 +296,13 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
                 checkpoint(checkpoints_dir, epoch, G_XtoY, G_YtoX, D_X, D_Y)
 
             # save best weights
-            if train_total_G_loss <= min_loss:
-                print('Total Loss decreased from {:.5f} to {:.5f}. Saving Model.'.format(min_loss, train_total_G_loss))
+            if total_recon_loss <= min_loss:
+                print('Total Reconstruction Loss decreased from {:.5f} to {:.5f}. Saving Model.'.format(min_loss, total_recon_loss))
                 checkpoint(checkpoints_dir, epoch, G_XtoY, G_YtoX, D_X, D_Y, best=True)
-                min_loss = train_total_G_loss
+                min_loss = total_recon_loss
                 n_consecutive_epochs = 0
             else:
-                print('Total Loss did not improve from {:.5f}'.format(min_loss))
+                print('Total Reconstruction Loss did not improve from {:.5f}'.format(min_loss))
                 n_consecutive_epochs += 1
 
             # log to the csv file
@@ -309,9 +321,12 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
             # early stop
             if n_consecutive_epochs >= early_stop_epoch_thres:
                 print('Total Loss did not improve for {} consecutive epochs. Early Stopping!'.format(n_consecutive_epochs))
+                n_epochs = epoch
                 break
         
-    return losses
+    # checkpoint final weights
+    checkpoint(checkpoints_dir, n_epochs, G_XtoY, G_YtoX, D_X, D_Y)
+    print('Training completed in {} epochs.'.format(n_epochs))
 
 if __name__ == '__main__':
     # print model summary
@@ -340,6 +355,7 @@ if __name__ == '__main__':
     print('\t- Num of Non-Trainable Parameters  : {:,}'.format(n_non_trainable_params))
     print('==========================================================')
     summary(G_XtoY, (3,image_size[0],image_size[1]))
+    summary(D_X, (3,image_size[0],image_size[1]))
 
     # load weights
     if use_pretrained_weights:
@@ -362,12 +378,5 @@ if __name__ == '__main__':
     n_test_batch_per_epoch = math.ceil(n_test_samples/batch_size)
     print('Training on {} samples and testing on {} samples for a maximum of {} epochs.'.format(n_train_samples, n_test_samples, n_epochs))
 
-    losses = trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_test_batch_per_epoch, batch_size=batch_size, n_epochs=n_epochs)
-
-    fig, ax = plt.subplots(figsize=(12,8))
-    losses = np.array(losses)
-    plt.plot(losses.T[0], label='Discriminator, X', alpha=0.5)
-    plt.plot(losses.T[1], label='Discriminator, Y', alpha=0.5)
-    plt.plot(losses.T[2], label='Generators', alpha=0.5)
-    plt.title("Training Losses")
-    plt.legend()
+    # train the model
+    trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_test_batch_per_epoch, batch_size=batch_size, n_epochs=n_epochs)

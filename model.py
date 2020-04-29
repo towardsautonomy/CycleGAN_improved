@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # helper conv function
-def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, normalization=True, norm_type='instance_norm'):
     """Creates a convolutional layer, with optional batch normalization.
     """
     layers = []
@@ -12,19 +12,25 @@ def conv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm
     
     layers.append(conv_layer)
 
-    if batch_norm:
+    # optional normalization layer
+    if normalization == True and norm_type == 'instance_norm':
+        layers.append(nn.InstanceNorm2d(out_channels))
+    elif normalization == True and norm_type == 'batch_norm':
         layers.append(nn.BatchNorm2d(out_channels))
     return nn.Sequential(*layers)
 
 # helper deconv function
-def deconv(in_channels, out_channels, kernel_size, stride=2, padding=1, batch_norm=True):
+def deconv(in_channels, out_channels, kernel_size, stride=2, padding=1, normalization=True, norm_type='instance_norm'):
     """Creates a transpose convolutional layer, with optional batch normalization.
     """
     layers = []
     # append transpose conv layer
     layers.append(nn.ConvTranspose2d(in_channels, out_channels, kernel_size, stride, padding, bias=False))
-    # optional batch norm layer
-    if batch_norm:
+
+    # optional normalization layer
+    if normalization == True and norm_type == 'instance_norm':
+        layers.append(nn.InstanceNorm2d(out_channels))
+    elif normalization == True and norm_type == 'batch_norm':
         layers.append(nn.BatchNorm2d(out_channels))
     return nn.Sequential(*layers)
 
@@ -42,15 +48,29 @@ class ResidualBlock(nn.Module):
         # layers should have the same shape input as output; I suggest a kernel_size of 3
         
         self.conv_layer1 = conv(in_channels=conv_dim, out_channels=conv_dim, 
-                                kernel_size=3, stride=1, padding=1, batch_norm=True)
+                                kernel_size=3, stride=1, padding=1, normalization=True)
         
         self.conv_layer2 = conv(in_channels=conv_dim, out_channels=conv_dim, 
-                               kernel_size=3, stride=1, padding=1, batch_norm=True)
+                               kernel_size=3, stride=1, padding=1, normalization=True)
+
+        # leaky relu function
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
+
+        # reset parameters
+        self.reset_parameters()
+
+    def init_weights(self, layer):
+        if type(layer) == nn.Conv2d:
+            torch.nn.init.xavier_uniform(layer.weight)
+
+    def reset_parameters(self):
+        self.conv_layer1.apply(self.init_weights)
+        self.conv_layer2.apply(self.init_weights)
         
     def forward(self, x):
         # apply a ReLu activation the outputs of the first layer
         # return a summed output, x + resnet_block(x)
-        out_1 = F.relu(self.conv_layer1(x))
+        out_1 = self.leaky_relu(self.conv_layer1(x))
         out_2 = x + self.conv_layer2(out_1)
         return out_2
 
@@ -61,17 +81,32 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         # Define all convolutional layers
-        # Should accept an RGB image as input and output a single value
-
         # Convolutional layers, increasing in depth
         # first layer has *no* batchnorm
-        self.conv1 = conv(3, conv_dim, 4, batch_norm=False)
+        self.conv1 = conv(3, conv_dim, 4, normalization=False)
         self.conv2 = conv(conv_dim, conv_dim*2, 4) 
         self.conv3 = conv(conv_dim*2, conv_dim*4, 4) 
         self.conv4 = conv(conv_dim*4, conv_dim*8, 4)
         
         # Classification layer
-        self.conv5 = conv(conv_dim*8, 1, 4, stride=1, batch_norm=False)
+        self.conv_final = conv(conv_dim*8, 1, 3, stride=1, normalization=False)
+
+        # reset parameters
+        self.reset_parameters()
+
+        # leaky relu function
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
+
+    def init_weights(self, layer):
+        if type(layer) == nn.Conv2d:
+            torch.nn.init.xavier_uniform(layer.weight)
+
+    def reset_parameters(self):
+        self.conv1.apply(self.init_weights)
+        self.conv2.apply(self.init_weights)
+        self.conv3.apply(self.init_weights)
+        self.conv4.apply(self.init_weights)
+        self.conv_final.apply(self.init_weights)
 
     def forward(self, x):
         # relu applied to all conv layers but last
@@ -80,26 +115,20 @@ class Discriminator(nn.Module):
         out = F.relu(self.conv3(out))
         out = F.relu(self.conv4(out))
         # last, classification layer
-        out = self.conv5(out)
+        out = self.conv_final(out)
         return out
 
 # Define the Generator Architecture
 class Generator(nn.Module):
     
-    def __init__(self, conv_dim=64, n_res_blocks=4):
+    def __init__(self, conv_dim=64, n_res_blocks=6):
         super(Generator, self).__init__()
 
         # Define the encoder part of the generator
-        
-        # initial convolutional layer given, below
-        self.block1_conv1 = conv(3, conv_dim, 4)
-        self.block1_conv2 = conv(conv_dim, conv_dim, 4)
-
-        self.block2_conv1 = conv(conv_dim, 2*conv_dim, 4)
-        self.block2_conv2 = conv(2*conv_dim, 2*conv_dim, 4)
-
-        self.block3_conv1 = conv(2*conv_dim, 4*conv_dim, 4)
-        self.block3_conv2 = conv(4*conv_dim, 4*conv_dim, 4)
+        self.conv1 = conv(3, conv_dim, 4)
+        self.conv2 = conv(conv_dim, conv_dim*2, 4)
+        self.conv3 = conv(conv_dim*2, conv_dim*4, 4)
+        self.conv4 = conv(conv_dim*4, conv_dim*4, 4)
 
         # Define the resnet part of the generator
         # Residual blocks
@@ -110,45 +139,58 @@ class Generator(nn.Module):
         self.res_blocks = nn.Sequential(*res_layers)
 
         # Define the decoder part of the generator
-        # two transpose convolutional layers and a third that looks a lot like the initial conv layer
-        self.dblock1_deconv1 = deconv(conv_dim*4, conv_dim*2, 4)
-        self.dblock1_deconv2 = deconv(conv_dim*2, conv_dim*2, 4)
+        # self.deconv1 = deconv(conv_dim*8, conv_dim*8, 4)
+        # self.deconv2 = deconv(conv_dim*8, conv_dim*8, 4)8
+        self.deconv1 = deconv(conv_dim*4, conv_dim*4, 4)
+        self.deconv2 = deconv(conv_dim*4, conv_dim*2, 4)
+        self.deconv3 = deconv(conv_dim*2, conv_dim, 4)
 
-        self.dblock2_deconv1 = deconv(conv_dim*2, conv_dim, 4)
-        self.dblock2_deconv2 = deconv(conv_dim, conv_dim, 4)
-
-        self.dblock3_deconv1 = deconv(conv_dim, conv_dim, 4)
         # no batch norm on last layer
-        self.out_layer = deconv(conv_dim, 3, 4, batch_norm=False)
+        self.out_layer = deconv(conv_dim, 3, 4, normalization=False)
 
+        # reset parameters
+        self.reset_parameters()
+
+        # leaky relu function
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
+
+    def init_weights(self, layer):
+        if type(layer) == nn.Conv2d or type(layer) == nn.ConvTranspose2d:
+            torch.nn.init.xavier_uniform(layer.weight)
+
+    def reset_parameters(self):
+        self.conv1.apply(self.init_weights)
+        self.conv2.apply(self.init_weights)
+        self.conv3.apply(self.init_weights)
+        self.conv4.apply(self.init_weights)
+
+        self.deconv1.apply(self.init_weights)
+        self.deconv2.apply(self.init_weights)
+        self.deconv3.apply(self.init_weights)
+
+        self.out_layer.apply(self.init_weights)
+        
     def forward(self, x):
         """Given an image x, returns a transformed image."""
         # define feedforward behavior, applying activations as necessary
-
-        out = F.relu(self.block1_conv1(x))
-        out = F.relu(self.block1_conv2(out))
-
-        out = F.relu(self.block2_conv1(out))
-        out = F.relu(self.block2_conv2(out))
-
-        out = F.relu(self.block3_conv1(out))
-        out = F.relu(self.block3_conv2(out))
+        out = self.leaky_relu(self.conv1(x))
+        out = self.leaky_relu(self.conv2(out))
+        out = self.leaky_relu(self.conv3(out))
+        out = self.leaky_relu(self.conv4(out))
 
         out = self.res_blocks(out)
 
-        out = F.relu(self.dblock1_deconv1(out))
-        out = F.relu(self.dblock1_deconv2(out))
+        out = self.leaky_relu(self.deconv1(out))
+        out = self.leaky_relu(self.deconv2(out))
+        out = self.leaky_relu(self.deconv3(out))
 
-        out = F.relu(self.dblock2_deconv1(out))
-        out = F.relu(self.dblock2_deconv2(out))
-
-        out = F.relu(self.dblock3_deconv1(out))
         # tanh applied to last layer
         out = F.tanh(self.out_layer(out))
+        out = torch.clamp(out, min=-0.5, max=0.5)
 
         return out
 
-def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=4):
+def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6):
     """Builds the generators and discriminators."""
     
     # Instantiate generators

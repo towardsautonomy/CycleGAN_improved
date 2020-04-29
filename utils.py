@@ -67,8 +67,10 @@ def save_samples(samples_dir, epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_siz
     Y, fake_X, recon_X_Y = to_data(fixed_Y), to_data(fake_X), to_data(recon_X_Y)
 
     # matplotlib plot
-    n_rows = 4
+    n_rows = min(4, batch_size)
     plt.figure(figsize=(20,16))
+    plt.xticks([])
+    plt.yticks([])
     plt.tight_layout()
 
     for i in range(min(n_rows, batch_size)):
