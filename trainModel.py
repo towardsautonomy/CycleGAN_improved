@@ -6,7 +6,7 @@ import math
 import time
 import csv
 
-from dataLoader import GAN_DataLoader, imshow
+from dataLoader import GAN_DataLoader
 from model import CycleGAN
 from lossFunc import *
 from utils import *
