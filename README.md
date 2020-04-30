@@ -3,16 +3,17 @@
 This is a simple PyTorch implementation of [CycleGAN](https://junyanz.github.io/CycleGAN/) and a study of its incremental improvements.
 
 ![](media/cyclegan_gpatch_and_global_disc_res.gif)   
+*Figure 1: Training progress of CycleGAN with Global and Patch Discriminator on image resolution 1024x256*
 
 CycleGAN provided a huge insight into the idea of cycle-consistency for domain adaptation. It initially proposed using a cycle-consistency loss combined with the adversarial loss to ensure that domain-translated image looks realistic while maintaining forward and backward consistency of the image. This was a great help towards solving the mode collapse problem and it also maintains the shape of objects within scene. The discriminator was proposed to output a single fake/real prediction, which since then have been proposed to be replaced with a patch discriminator. Patch discriminator looks at a small patch of the generator, say 16x16 patch, and classifies it as real/fake. This forces the generator to get the domain translation right down to smaller scale.
 
-This works great for an image of say size 256x256, as shown in Figure 1, but have several failure cases when extended to a higher resolution image with different aspect ratio e.g. 1024x256. To counter that, I use two discriminators - (1) Global Discriminator with a single output, and (2) Patch Discriminator of size 64x16 for classifying patches of 16x16 as real/fake. This architecture is shown in Figure 2.
+This works great for an image of say size 256x256, as shown in Figure 2, but have several failure cases when extended to a higher resolution image with different aspect ratio e.g. 1024x256. To counter that, I use two discriminators - (1) Global Discriminator with a single output, and (2) Patch Discriminator of size 64x16 for classifying patches of 16x16 as real/fake. This architecture is shown in Figure 3.
 
 ![](media/cyclegan_patch_disc_256x256.gif)   
-*Figure 1: CycleGAN with a patch discriminator on image size 256x256*
+*Figure 2: Training progress of CycleGAN with a patch discriminator on image resolution 256x256*
 
 ![](media/cyclegan_patch_global_disc_bd.png)   
-*Figure 2: CycleGAN with Global and Patch Discriminator*
+*Figure 3: CycleGAN with Global and Patch Discriminator*
 
 Qualitative comparision of CycleGAN result on an image resolution of 1024x256 for the architecture with only Patch Discriminator and the one with a combination of Patch Discriminator and Global Discriminator is shown below.  
 
@@ -20,7 +21,8 @@ Qualitative comparision of CycleGAN result on an image resolution of 1024x256 fo
 |:--------------------------------------:|:-----------------------------------------------------------:|
 | Virtual KITTI (Simulation Data)        | Virtual KITTI (Simulation Data)                             |
 |![](media/cyclegan_patch_disc_res.png)  | ![](media/cyclegan_patch_global_disc_res.png)               |
-| Virtual KITTI to KITTI (Sim2Real)      | Virtual KITTI to KITTI (Sim2Real)                           |
+| Virtual KITTI to KITTI (Sim2Real)      | Virtual KITTI to KITTI (Sim2Real)                           |   
+*Figure 4: Qualitative Comparision*
 
 ## Key Details
 
@@ -34,7 +36,8 @@ Qualitative comparision of CycleGAN result on an image resolution of 1024x256 fo
 
 ## Training and Validation Losses
 
-![](media/losses.png)
+![](media/losses.png)   
+*Figure 5: Training and Validation Losses*
 
 ## Model Architectures
 
