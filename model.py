@@ -74,11 +74,76 @@ class ResidualBlock(nn.Module):
         out_2 = x + self.conv_layer2(out_1)
         return out_2
 
-# Define the Discriminator Architecture
-class Discriminator(nn.Module):
+# Define the Global Discriminator Architecture
+class GlobalDiscriminator(nn.Module):
     
     def __init__(self, conv_dim=64):
-        super(Discriminator, self).__init__()
+        super(GlobalDiscriminator, self).__init__()
+        self.image_size = (1024, 256)
+
+        # Define all convolutional layers
+        # Convolutional layers, increasing in depth
+        # first layer has *no* batchnorm
+        self.conv1 = conv(3, conv_dim, 4, normalization=False)
+        self.conv2 = conv(conv_dim, conv_dim*2, 4) 
+        self.conv3 = conv(conv_dim*2, conv_dim*4, 4) 
+        self.conv4 = conv(conv_dim*4, conv_dim*4, 4)
+        self.conv5 = conv(conv_dim*4, conv_dim*4, 4)
+        self.conv6 = conv(conv_dim*4, conv_dim*4, 4)
+        self.conv7 = conv(conv_dim*4, conv_dim*4, 4)
+        self.conv8 = conv(conv_dim*4, conv_dim*4, 4)
+        # ully-connected layers
+        fc_in_size = int(conv_dim*4*self.image_size[0]*self.image_size[1] / ((2**8)*(2**8)))
+        self.fc1 = nn.Linear(fc_in_size, 64)
+        
+        # Classification layer
+        self.disc_out = nn.Linear(64, 1)
+
+        # reset parameters
+        self.reset_parameters()
+
+        # flatten layer
+        self.flatten = nn.Flatten()
+        # leaky relu function
+        self.leaky_relu = nn.LeakyReLU(negative_slope=0.2)
+
+    def init_weights(self, layer):
+        if type(layer) == nn.Conv2d or type(layer) == nn.Linear:
+            torch.nn.init.xavier_uniform(layer.weight)
+
+    def reset_parameters(self):
+        self.conv1.apply(self.init_weights)
+        self.conv2.apply(self.init_weights)
+        self.conv3.apply(self.init_weights)
+        self.conv4.apply(self.init_weights)
+        self.conv5.apply(self.init_weights)
+        self.conv6.apply(self.init_weights)
+        self.conv7.apply(self.init_weights)
+        self.conv8.apply(self.init_weights)
+        self.fc1.apply(self.init_weights)
+        self.disc_out.apply(self.init_weights)
+
+    def forward(self, x):
+        # relu applied to all conv layers but last
+        out = F.relu(self.conv1(x))
+        out = F.relu(self.conv2(out))
+        out = F.relu(self.conv3(out))
+        out = F.relu(self.conv4(out))
+        out = F.relu(self.conv5(out))
+        out = F.relu(self.conv6(out))
+        out = F.relu(self.conv7(out))
+        out = F.relu(self.conv8(out))
+        out = self.flatten(out)
+        out = F.relu(self.fc1(out))
+        # last, classification layer
+        out = self.disc_out(out)
+        return out
+
+# Define the Patch Discriminator Architecture
+class PatchDiscriminator(nn.Module):
+    
+    def __init__(self, conv_dim=64):
+        super(PatchDiscriminator, self).__init__()
 
         # Define all convolutional layers
         # Convolutional layers, increasing in depth
@@ -194,9 +259,12 @@ def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6):
     # Instantiate generators
     G_XtoY = Generator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
     G_YtoX = Generator(conv_dim=g_conv_dim, n_res_blocks=n_res_blocks)
-    # Instantiate discriminators
-    D_X = Discriminator(conv_dim=d_conv_dim)
-    D_Y = Discriminator(conv_dim=d_conv_dim)
+    # Instantiate patch discriminators
+    Dp_X = PatchDiscriminator(conv_dim=d_conv_dim)
+    Dp_Y = PatchDiscriminator(conv_dim=d_conv_dim)
+    # Instantiate global discriminators
+    Dg_X = GlobalDiscriminator(conv_dim=d_conv_dim)
+    Dg_Y = GlobalDiscriminator(conv_dim=d_conv_dim)
 
     # move models to GPU, if available
     cuda_available = torch.cuda.is_available()
@@ -205,8 +273,10 @@ def CycleGAN(g_conv_dim=64, d_conv_dim=64, n_res_blocks=6):
     device = torch.device(device)
     G_XtoY.to(device)
     G_YtoX.to(device)
-    D_X.to(device)
-    D_Y.to(device)
+    Dp_X.to(device)
+    Dp_Y.to(device)
+    Dg_X.to(device)
+    Dg_Y.to(device)
 
     print('Using {}.'.format("GPU" if cuda_available else "CPU"))
-    return G_XtoY, G_YtoX, D_X, D_Y
+    return G_XtoY, G_YtoX, Dp_X, Dp_Y, Dg_X, Dg_Y

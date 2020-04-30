@@ -17,7 +17,7 @@ test_path = '/home/shubham/workspace/dataset/vKITTI/Scene01/clone/frames/rgb/*/*
 
 ## create models
 # call the function to get models
-G_XtoY, G_YtoX, D_X, D_Y = CycleGAN(n_res_blocks=2)
+G_XtoY, G_YtoX, Dp_X, Dp_Y, Dg_X, Dg_Y = CycleGAN(n_res_blocks=2)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -47,9 +47,6 @@ def changeDomain(img_x, model):
 if __name__ == '__main__':
     # load weights
     G_XtoY.load_state_dict(torch.load(generator_x_y_weights, map_location=lambda storage, loc: storage))
-    G_YtoX.load_state_dict(torch.load(generator_y_x_weights, map_location=lambda storage, loc: storage))
-    D_X.load_state_dict(torch.load(discriminator_x_weights, map_location=lambda storage, loc: storage))
-    D_Y.load_state_dict(torch.load(discriminator_y_weights, map_location=lambda storage, loc: storage))
     print('Loaded pretrained weights')
 
     # get image file names
@@ -67,7 +64,6 @@ if __name__ == '__main__':
         img_y_bgr = cv2.cvtColor(img_y, cv2.COLOR_RGB2BGR)
         img_y_bgr = cv2.resize(img_y_bgr, img_orig_size, interpolation=cv2.INTER_LINEAR)
         # concatenate images and visualize
-        print(img_x.shape, img_y.shape)
         img_concat = cv2.vconcat([img_x, img_y_bgr])
         cv2.imshow('Image X -> Y', img_concat)
         cv2.waitKey(0)

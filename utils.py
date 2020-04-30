@@ -16,7 +16,7 @@ import imageio
 import matplotlib.pyplot as plt 
 import cv2 
 
-def checkpoint(checkpoint_dir, epoch, G_XtoY, G_YtoX, D_X, D_Y, best=False):
+def checkpoint(checkpoint_dir, epoch, G_XtoY, G_YtoX, Dp_X, Dp_Y, Dg_X, Dg_Y, best=False):
     """Saves the parameters of both generators G_YtoX, G_XtoY and discriminators D_X, D_Y."""
     if best == True:
         checkpoint_dir = os.path.join(checkpoint_dir, 'best')
@@ -30,14 +30,18 @@ def checkpoint(checkpoint_dir, epoch, G_XtoY, G_YtoX, D_X, D_Y, best=False):
     # build up the file paths
     G_XtoY_path = os.path.join(checkpoint_dir, 'G_XtoY.pkl')
     G_YtoX_path = os.path.join(checkpoint_dir, 'G_YtoX.pkl')
-    D_X_path = os.path.join(checkpoint_dir, 'D_X.pkl')
-    D_Y_path = os.path.join(checkpoint_dir, 'D_Y.pkl')
+    Dp_X_path = os.path.join(checkpoint_dir, 'Dp_X.pkl')
+    Dp_Y_path = os.path.join(checkpoint_dir, 'Dp_Y.pkl')
+    Dg_X_path = os.path.join(checkpoint_dir, 'Dg_X.pkl')
+    Dg_Y_path = os.path.join(checkpoint_dir, 'Dg_Y.pkl')
 
     # save weights to file
     torch.save(G_XtoY.state_dict(), G_XtoY_path)
     torch.save(G_YtoX.state_dict(), G_YtoX_path)
-    torch.save(D_X.state_dict(), D_X_path)
-    torch.save(D_Y.state_dict(), D_Y_path)
+    torch.save(Dp_X.state_dict(), Dp_X_path)
+    torch.save(Dp_Y.state_dict(), Dp_Y_path)
+    torch.save(Dg_X.state_dict(), Dg_X_path)
+    torch.save(Dg_Y.state_dict(), Dg_Y_path)
 
 def to_data(x):
     """Converts variable to numpy."""
@@ -68,20 +72,21 @@ def save_samples(samples_dir, epoch, fixed_Y, fixed_X, G_YtoX, G_XtoY, batch_siz
 
     # matplotlib plot
     n_rows = min(4, batch_size)
-    plt.figure(figsize=(20,16))
+    # plt.figure(figsize=(20,16))
+    plt.figure(figsize=(16,8))
     plt.xticks([])
     plt.yticks([])
     plt.tight_layout()
 
     for i in range(min(n_rows, batch_size)):
-        plt.subplot(n_rows,2,i*2+1)
+        plt.subplot(n_rows*2,1,i*2+1)
         plt.title('Original Image X   |   Translated Image    |   Reconstructed Image', fontsize=16, fontweight="bold")
         img_concat = cv2.hconcat([np.transpose(X[i,:,:,:], (1, 2, 0)),       
                                   np.transpose(fake_Y[i,:,:,:], (1, 2, 0)),   
                                   np.transpose(recon_Y_X[i,:,:,:], (1, 2, 0))])
         plt.imshow(img_concat)
 
-        plt.subplot(n_rows,2,i*2+2)
+        plt.subplot(n_rows*2,1,i*2+2)
         plt.title('Original Image Y   |   Translated Image    |   Reconstructed Image', fontsize=16, fontweight="bold")
         img_concat = cv2.hconcat([np.transpose(Y[i,:,:,:], (1, 2, 0)),       
                                   np.transpose(fake_X[i,:,:,:], (1, 2, 0)),   
