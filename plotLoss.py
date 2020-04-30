@@ -43,7 +43,7 @@ def plot_losses():
     ax[0].plot(epoch, recon_X_loss)
     ax[0].plot(epoch, recon_Y_loss)
     ax[0].plot(epoch, total_loss)
-    ax[0].legend(['x_discriminator_loss','y_discriminator_loss','x_reconstruction_loss','x_reconstruction_loss','total_loss'], loc='upper right', fancybox=True, framealpha=1., shadow=True, borderpad=1)
+    ax[0].legend(['x_discriminator_loss','y_discriminator_loss','x_reconstruction_loss','y_reconstruction_loss','total_loss'], loc='upper right', fancybox=True, framealpha=1., shadow=True, borderpad=1)
     ax[0].set_ylabel('Losses', fontweight='bold')
     # validation losses
     ax[1].set_title('Validation Losses', fontweight='bold')
@@ -53,7 +53,7 @@ def plot_losses():
     ax[1].plot(epoch, valid_recon_X_loss)
     ax[1].plot(epoch, valid_recon_Y_loss)
     ax[1].plot(epoch, valid_total_loss)
-    ax[1].legend(['x_discriminator_loss','y_discriminator_loss','x_reconstruction_loss','x_reconstruction_loss','total_loss'], loc='upper right', fancybox=True, framealpha=1., shadow=True, borderpad=1)
+    ax[1].legend(['x_discriminator_loss','y_discriminator_loss','x_reconstruction_loss','y_reconstruction_loss','total_loss'], loc='upper right', fancybox=True, framealpha=1., shadow=True, borderpad=1)
     ax[1].set_ylabel('Losses', fontweight='bold')
     # plot metrics and save
     plt.savefig('media/losses.png')
