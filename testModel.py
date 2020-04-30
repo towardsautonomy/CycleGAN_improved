@@ -1,11 +1,8 @@
 import torch
 from torchsummary import summary
 import matplotlib.pyplot as plt
-from collections import deque
 import numpy as np
 import cv2
-import math
-import time
 import csv
 import glob
 from model import CycleGAN
@@ -21,7 +18,7 @@ G_XtoY, G_YtoX, Dp_X, Dp_Y, Dg_X, Dg_Y = CycleGAN(n_res_blocks=2)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-def changeDomain(img_x, model):
+def translateDomain(img_x, model):
     # resize, and normalize image x
     img_x = cv2.resize(img_x, image_size)
     img_x = np.asarray((np.true_divide(img_x, 255.0) - 0.5), dtype=np.float32)
@@ -59,7 +56,7 @@ if __name__ == '__main__':
         # convert to rgb
         img_x_rgb = cv2.cvtColor(img_x, cv2.COLOR_BGR2RGB)
         # use the model to change domain
-        img_y = changeDomain(img_x_rgb, G_XtoY)
+        img_y = translateDomain(img_x_rgb, G_XtoY)
         # rgb to bgr and resize
         img_y_bgr = cv2.cvtColor(img_y, cv2.COLOR_RGB2BGR)
         img_y_bgr = cv2.resize(img_y_bgr, img_orig_size, interpolation=cv2.INTER_LINEAR)
