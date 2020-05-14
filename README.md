@@ -20,7 +20,7 @@ Qualitative comparision of CycleGAN result on an image resolution of 1024x256 fo
 | CycleGAN with only Patch Discriminator |  CycleGAN with Patch Discriminator and Global Discriminator |
 |:--------------------------------------:|:-----------------------------------------------------------:|
 | Virtual KITTI (Simulation Data)        | Virtual KITTI (Simulation Data)                             |
-|![](media/cyclegan_patch_disc_res.png)  | ![](media/cyclegan_patch_global_disc_res.png)               |
+| ![](media/cyclegan_patch_disc_res.png) | ![](media/cyclegan_patch_global_disc_res.png)               |
 | Virtual KITTI to KITTI translation (Sim2Real) | Virtual KITTI to KITTI translation (Sim2Real)        |   
 
 *Figure 4: Qualitative Comparision*

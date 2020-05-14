@@ -8,7 +8,7 @@ batch_size=2                    # batch size
 init_epoch=0                    # initial epoch
 n_epochs=500                    # maximum nomber of epochs
 n_samples=-1                    # -1 for all available samples
-test_size=0.05                  # fraction of all samples for validation
+test_size=0.5                  # fraction of all samples for validation
 early_stop_epoch_thres=50       # threshold for stopping training if loss does not improve
     
 image_size = (1024, 256)         # image size 

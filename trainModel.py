@@ -314,6 +314,11 @@ def trainModel(dloader_train_it, dloader_test_it, n_train_batch_per_epoch, n_tes
             valid_recon_X_loss = np.mean(validation_losses[:,2])
             valid_recon_Y_loss = np.mean(validation_losses[:,3])
             valid_total_G_loss = np.mean(validation_losses[:,4])
+            print('\r                                       \
+                                                            \
+                                                            \
+                                                            \
+                                                            ', end="")
             print('\rEpoch [{:5d}/{:5d}] Training Losses   | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | recon_X_loss: {:6.4f} | recon_Y_loss: {:6.4f} | total_loss: {:6.4f} | Time Taken: {:.2f} sec        '.format(
                         epoch, n_epochs, train_d_X_loss, train_d_Y_loss, train_recon_X_loss, train_recon_Y_loss, train_total_G_loss, time_taken))
             print('\rEpoch [{:5d}/{:5d}] Validation Losses | d_X_loss: {:6.4f} | d_Y_loss: {:6.4f} | recon_X_loss: {:6.4f} | recon_Y_loss: {:6.4f} | total_loss: {:6.4f}'.format(
